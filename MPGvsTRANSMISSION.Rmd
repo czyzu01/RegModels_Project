@@ -1,0 +1,95 @@
+Is an automatic or manual transmission better for MPG
+========================================================
+
+
+Executive summary
+=================
+
+Introduction
+============
+You work for Motor Trend, a magazine about the automobile industry. Looking at a data set of a collection of cars, they are interested in exploring the relationship between a set of variables and miles per gallon (MPG) (outcome). They are particularly interested in the following two questions:
+
+*“Is an automatic or manual transmission better for MPG”*  
+*"Quantify the MPG difference between automatic and manual transmissions"*
+
+# Exploration of data
+
+## Summary of mtcars
+```{r showtable,echo=TRUE,results='asis'}
+data<-mtcars
+library(xtable)
+xt<-xtable(summary(data))
+print(xt, type="html")
+```
+
+## Data cleansing
+```{r echo=TRUE}
+data$cyl<-factor(data$cyl)
+data$am<-factor(data$am)
+levels(data$am)<-c("automatic", "manual")
+data$gear<-factor(data$gear)
+data$carb<-factor(data$carb)
+```
+
+## Vizualization
+```{r echo=TRUE}
+library(ggplot2)
+qplot(x=wt, y=mpg, data=data, colour=am, facets=. ~ cyl, main="MPG per cyl, wt, trans type")
+```
+
+# Linear reg. Model
+## Select key metrics
+Intuitevely we could say that mpg is dependend on such variables as weight, cylinder count and (testing hypothesis)
+on transmission type. To test the hypotesis we should try all of the possible models. To that we can use R function `step`
+that we can use for testing multiple models. However there shortcommings of this methods should be know. The following blogpost
+describes this problem: http://davegiles.blogspot.com/2014/07/step-wise-regression.html
+```{r}
+stepmodel <- step(lm(data=data, mpg ~ .),trace=0,steps=1000, direction="both")
+print(stepmodel)
+```
+Clearly there is additional variable that was missed and that is: hp. We can verify this output by checking the correlation
+matrix. See appendix for more info. Results of this are shown in appendix, but they confirm all of the assumptions/intuition.
+
+## Use one variable
+Let's first try create regression models based one variable (the most significant, and the one that we are interested in)
+```{r}
+model1<-lm(mpg~am, data=data)
+print(model1)
+model2<-lm(mpg~cyl, data=data)
+print(model2)
+```
+Those results we can interpret as following that using automatic transmission lowers the mpg you of a car by about 7 mpg (`model1`).
+However moving from 4 cylinders to 6 and then to 8 reduces your mpg quite significant value from 26, to 19 to 14.5 mpg (`model2`)
+
+
+## Use multiple variable lm model
+Let's see how adding variables impacts the model.
+```{r}
+model3<-lm(mpg~cyl+hp, data=data)
+print(model3)
+model4<-lm(mpg~cyl+hp+wt, data=data)
+print(model4)
+model5<-lm(mpg~cyl+hp+wt+am, data=data)
+print(model5)
+```
+
+## Interpretation
+
+```{r}
+anova(model1, model2, model3, model4, model5)
+```
+
+# Quality (residuals)
+## Results
+## Interpretation
+
+# Uncertainty
+
+
+
+# Appendix
+This heatmap is showing which variables are highly correlated and therefore impact mpg the highest. To get correlation matrix we have to use original mtcars set because we did factorization of some columns, and therefore we cannot use `data` variable. 
+```{r heatmap, fig.width=7, fig.height=6}
+heatmap(cor(mtcars), main="Correlations of mtcars data set")
+```
+As it can be seen the transmission type (`am` variable) has very litlle correlation on `mpg`
