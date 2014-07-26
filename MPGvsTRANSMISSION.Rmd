@@ -1,95 +1,120 @@
+---
+output: pdf_document
+---
 Is an automatic or manual transmission better for MPG
 ========================================================
 
+## Executive summary
 
-Executive summary
-=================
+*“Is an automatic or manual transmission better for MPG”*   
+*"Quantify the MPG difference between automatic and manual transmissions"*  
 
-Introduction
-============
-You work for Motor Trend, a magazine about the automobile industry. Looking at a data set of a collection of cars, they are interested in exploring the relationship between a set of variables and miles per gallon (MPG) (outcome). They are particularly interested in the following two questions:
+Based on the gathered data using simple linear regression model we can conclude that manual gives better MPG by more then 7.24 $\pm$ 4.9.  
+After finding the most significant parameters which are (cylinder count, weight, horsepower and transmission type) impact of 
+transmission type deacreases to 1.8 $\pm$ 2.41. That is having all other variables the same most cars would show that MPG is better while
+having manual transmission.
 
-*“Is an automatic or manual transmission better for MPG”*  
-*"Quantify the MPG difference between automatic and manual transmissions"*
 
-# Exploration of data
+## Exploration of data
 
-## Summary of mtcars
+### Summary of mtcars
 ```{r showtable,echo=TRUE,results='asis'}
 data<-mtcars
-library(xtable)
-xt<-xtable(summary(data))
-print(xt, type="html")
 ```
+The data was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973–74 models).
 
-## Data cleansing
+### Data cleansing
+We change data from numeric to factors.
 ```{r echo=TRUE}
-data$cyl<-factor(data$cyl)
-data$am<-factor(data$am)
+data$cyl<-factor(data$cyl);data$am<-factor(data$am);data$gear<-factor(data$gear);data$carb<-factor(data$carb)
 levels(data$am)<-c("automatic", "manual")
-data$gear<-factor(data$gear)
-data$carb<-factor(data$carb)
 ```
 
-## Vizualization
-```{r echo=TRUE}
-library(ggplot2)
-qplot(x=wt, y=mpg, data=data, colour=am, facets=. ~ cyl, main="MPG per cyl, wt, trans type")
-```
-
-# Linear reg. Model
-## Select key metrics
+## Linear reg. Model
+### Select key metrics
 Intuitevely we could say that mpg is dependend on such variables as weight, cylinder count and (testing hypothesis)
 on transmission type. To test the hypotesis we should try all of the possible models. To that we can use R function `step`
 that we can use for testing multiple models. However there shortcommings of this methods should be know. The following blogpost
 describes this problem: http://davegiles.blogspot.com/2014/07/step-wise-regression.html
 ```{r}
-stepmodel <- step(lm(data=data, mpg ~ .),trace=0,steps=1000, direction="both")
-print(stepmodel)
+stepmodel <- step(lm(data=data, mpg ~ .),trace=0,steps=1000, direction="both"); print(stepmodel$call)
 ```
 Clearly there is additional variable that was missed and that is: hp. We can verify this output by checking the correlation
 matrix. See appendix for more info. Results of this are shown in appendix, but they confirm all of the assumptions/intuition.
 
-## Use one variable
+
+Notice that in one of the first steps a factorization of non-continous variables was done, Without factorization a fitted model looks differently:
+```{r}
+stepmodel <- step(lm(data=mtcars, mpg ~ .),trace=0,steps=1000, direction="both"); print(stepmodel$call)
+```
+This is due the fact that factorization variable is treated (cylinder) as three binary variables and (am) as two binary variables.
+
+
+### Use one variable
 Let's first try create regression models based one variable (the most significant, and the one that we are interested in)
 ```{r}
-model1<-lm(mpg~am, data=data)
-print(model1)
-model2<-lm(mpg~cyl, data=data)
-print(model2)
+model1<-lm(mpg~am, data=data); summary(model1)$coef
+model2<-lm(mpg~cyl, data=data); summary(model2)$coef
 ```
 Those results we can interpret as following that using automatic transmission lowers the mpg you of a car by about 7 mpg (`model1`).
 However moving from 4 cylinders to 6 and then to 8 reduces your mpg quite significant value from 26, to 19 to 14.5 mpg (`model2`)
 
 
-## Use multiple variable lm model
-Let's see how adding variables impacts the model.
+
+### Use multiple variable lm model
+Let's see how adding variables impacts the model (full summary of models: `model2`, `model3`, `model4` are avaliable in Appendix).
 ```{r}
-model3<-lm(mpg~cyl+hp, data=data)
-print(model3)
-model4<-lm(mpg~cyl+hp+wt, data=data)
-print(model4)
-model5<-lm(mpg~cyl+hp+wt+am, data=data)
-print(model5)
+model3<-lm(mpg~cyl+wt, data=data); model4<-lm(mpg~cyl+wt+hp, data=data); model5<-lm(mpg~cyl+wt+hp+am, data=data)
+```
+A multivariate regression coefficient is the expected change in the response per unit change in the regressor, holding all of the other regressors fixed. The combined model has very high probability of 1 - 7.7e-13 for Pr(>|t|).
+
+The adjusted R-squared is a modified version of R-squared that has been adjusted for the number of predictors in the model. The adjusted R-squared increases only if the new term improves the model more than would be expected by chance. It decreases when a predictor improves the model by less than expected by chance. The adjusted R-squared can be negative, but it’s usually not.  It is always lower than the R-squared.
+```{r}
+adj.r2<-c(summary(model1)$adj.r.squared,  summary(model2)$adj.r.squared,  summary(model3)$adj.r.squared,  summary(model4)$adj.r.squared,  summary(model5)$adj.r.squared)
+names(adj.r2)<-c("model1", "model2", "model3", "model4", "model5"); print(adj.r2)
 ```
 
-## Interpretation
+We observe the value of adjusted $R^2$ is increasing therefore we can conclude that predictor improves.
 
-```{r}
-anova(model1, model2, model3, model4, model5)
-```
-
-# Quality (residuals)
-## Results
-## Interpretation
-
-# Uncertainty
-
-
-
-# Appendix
+## Appendix
 This heatmap is showing which variables are highly correlated and therefore impact mpg the highest. To get correlation matrix we have to use original mtcars set because we did factorization of some columns, and therefore we cannot use `data` variable. 
 ```{r heatmap, fig.width=7, fig.height=6}
 heatmap(cor(mtcars), main="Correlations of mtcars data set")
 ```
+
 As it can be seen the transmission type (`am` variable) has very litlle correlation on `mpg`
+
+### Vizualization
+```{r echo=TRUE}
+library(ggplot2)
+qplot(x=wt, y=mpg, data=data, colour=am, facets=. ~ cyl, main="MPG per cyl, wt, trans type")
+```
+
+### Model 2
+```{r}
+summary(model2)
+layout(matrix(c(1,2,3,4),2,2)) # optional 4 graphs/page 
+plot(model2)
+```
+
+### Model 3
+```{r}
+summary(model3)
+layout(matrix(c(1,2,3,4),2,2)) # optional 4 graphs/page 
+plot(model3)
+```
+
+### Model 4
+```{r}
+summary(model4)
+layout(matrix(c(1,2,3,4),2,2)) # optional 4 graphs/page 
+plot(model4, main=summary(model5)$call)
+```
+
+### Model 5
+Looking at the final model quality 
+```{r}
+summary(model5)
+layout(matrix(c(1,2,3,4),2,2)) # optional 4 graphs/page 
+plot(model5)
+```
